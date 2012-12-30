@@ -4,7 +4,7 @@
  *
  * An open source application development framework for PHP 5.1.6 or newer
  *
- * @package  	CodeIgniter
+ * @package		CodeIgniter
  * @author		ExpressionEngine Dev Team
  * @copyright	Copyright (c) 2008 - 2011, EllisLab, Inc.
  * @license		http://codeigniter.com/user_guide/license.html
@@ -24,7 +24,7 @@
  * @author		ExpressionEngine Dev Team
  * @link		http://codeigniter.com/user_guide/libraries/form_validation.html
  */
-class CI_Form_validation {
+class MY_Form_validation {
 
 	protected $CI;
 	protected $_field_data			= array();
@@ -309,6 +309,7 @@ class CI_Form_validation {
 			}
 
 			// We're we able to set the rules correctly?
+
 			if (count($this->_field_data) == 0)
 			{
 				log_message('debug', "Unable to find validation rules");
@@ -321,6 +322,7 @@ class CI_Form_validation {
 
 		// Cycle through the rules for each field, match the
 		// corresponding $_POST item and test for errors
+
 		foreach ($this->_field_data as $field => $row)
 		{
 			// Fetch the data from the corresponding $_POST array and cache it in the _field_data array.
@@ -469,6 +471,7 @@ class CI_Form_validation {
 	 */
 	protected function _execute($row, $rules, $postdata = NULL, $cycles = 0)
 	{
+
 		// If the $_POST data is an array we will run a recursive call
 		if (is_array($postdata))
 		{
@@ -485,60 +488,55 @@ class CI_Form_validation {
 
 		// If the field is blank, but NOT required, no further tests are necessary
 		$callback = FALSE;
-		if ( ! in_array('required', $rules) AND is_null($postdata))
-		{
-			// Before we bail out, does the rule contain a callback?
-			if (preg_match("/(callback_\w+(\[.*?\])?)/", implode(' ', $rules), $match))
-			{
-				$callback = TRUE;
-				$rules = (array('1' => $match[1]));
+
+		if (strpos(implode(' ', $rules), 'require_file')===FALSE) {
+			if ( ! in_array('required', $rules) AND is_null($postdata))	{
+
+				// Before we bail out, does the rule contain a callback?
+				if (preg_match("/(callback_\w+(\[.*?\])?)/", implode(' ', $rules), $match))	{
+
+					$callback = TRUE;
+					$rules = (array('1' => $match[1]));
+				}	else	{
+
+				//	return;
+				}
 			}
-			else
-			{
+
+			// --------------------------------------------------------------------
+
+			// Isset Test. Typically this rule will only apply to checkboxes.
+			if (is_null($postdata) AND $callback == FALSE)	{
+				if (in_array('isset', $rules, TRUE) OR in_array('required', $rules)) {
+					// Set the message type
+					$type = (in_array('required', $rules)) ? 'required' : 'isset';
+
+					if ( ! isset($this->_error_messages[$type]))	{
+						if (FALSE === ($line = $this->CI->lang->line($type)))	{
+							$line = 'The field was not set';
+						}
+					}	else {
+						$line = $this->_error_messages[$type];
+					}
+
+					// Build the error message
+					$message = sprintf($line, $this->_translate_fieldname($row['label']));
+
+					// Save the error message
+					$this->_field_data[$row['field']]['error'] = $message;
+
+					if ( ! isset($this->_error_array[$row['field']]))	{
+						$this->_error_array[$row['field']] = $message;
+					}
+				}
+
 				return;
 			}
 		}
-
-		// --------------------------------------------------------------------
-
-		// Isset Test. Typically this rule will only apply to checkboxes.
-		if (is_null($postdata) AND $callback == FALSE)
-		{
-			if (in_array('isset', $rules, TRUE) OR in_array('required', $rules))
-			{
-				// Set the message type
-				$type = (in_array('required', $rules)) ? 'required' : 'isset';
-
-				if ( ! isset($this->_error_messages[$type]))
-				{
-					if (FALSE === ($line = $this->CI->lang->line($type)))
-					{
-						$line = 'The field was not set';
-					}
-				}
-				else
-				{
-					$line = $this->_error_messages[$type];
-				}
-
-				// Build the error message
-				$message = sprintf($line, $this->_translate_fieldname($row['label']));
-
-				// Save the error message
-				$this->_field_data[$row['field']]['error'] = $message;
-
-				if ( ! isset($this->_error_array[$row['field']]))
-				{
-					$this->_error_array[$row['field']] = $message;
-				}
-			}
-
-			return;
-		}
-
 		// --------------------------------------------------------------------
 
 		// Cycle through each rule and run it
+
 		foreach ($rules As $rule)
 		{
 			$_in_array = FALSE;
@@ -584,13 +582,13 @@ class CI_Form_validation {
 			// Call the function that corresponds to the rule
 			if ($callback === TRUE)
 			{
-				if ( ! method_exists($this->CI, $rule))
+				if ( ! method_exists($this->CI->form, $rule))
 				{
 					continue;
 				}
 
 				// Run the function and grab the result
-				$result = $this->CI->$rule($postdata, $param);
+				$result = $this->CI->form->$rule($postdata, $param);
 
 				// Re-assign the result to the master data array
 				if ($_in_array == TRUE)
@@ -610,8 +608,10 @@ class CI_Form_validation {
 			}
 			else
 			{
+
 				if ( ! method_exists($this, $rule))
 				{
+
 					// If our own wrapper function doesn't exist we see if a native PHP function does.
 					// Users can use any native PHP function call that has one param.
 					if (function_exists($rule))
@@ -877,6 +877,11 @@ class CI_Form_validation {
 
 	// --------------------------------------------------------------------
 
+	// trigger
+	public function set_error($field, $message, $label = '') {
+		$this->_field_data[$field]['error'] = sprintf($message, $this->_translate_fieldname($label));
+	} 
+
 	/**
 	 * Required
 	 *
@@ -884,6 +889,26 @@ class CI_Form_validation {
 	 * @param	string
 	 * @return	bool
 	 */
+	public function require_file($str,$name) {
+
+		if ($_FILES[$name]['name']) {
+
+			return TRUE;
+		} else {
+	//		$this->form_validation->set_message('require_file', 'The %s field can not be the word "test"');
+			return FALSE;
+		}
+	}	
+	public function allowed_types($str,$name) {
+		
+		if ($_FILES[$name]['name']) {
+
+			return TRUE;
+		} else {
+	//		$this->form_validation->set_message('require_file', 'The %s field can not be the word "test"');
+			return FALSE;
+		}
+	}		
 	public function required($str)
 	{
 		if ( ! is_array($str))
